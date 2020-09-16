@@ -6,8 +6,9 @@ import time
 import random
 
 app = Flask(__name__)
-
 db = SqliteDatabase('message.db')
+
+SERVICE_DOMAIN = 'http://localhost:8080/message-id/'
 
 
 class BaseModel(Model):
@@ -16,8 +17,9 @@ class BaseModel(Model):
 
 
 class MessageModel(BaseModel):
-    url = CharField(30, unique=True)
+    messageId = CharField(30, unique=True)
     message = TextField()
+    url = CharField()
 
 
 db.connect()
@@ -35,10 +37,12 @@ def get_message(url):
 @app.route('/message', methods=["POST"])
 def create_message():
     message = request.get_json()
+    print(message)
     if message is None:
         return "Неправильный формат данных.", 404
-    id = str(round(random.uniform(1, 100))) + str(round(time.time() * 1000))
-    new_message = MessageModel.create(url=id, message=message['message'])
+    id = "id" + str(round(random.uniform(1, 100))) + str(round(time.time() * 1000))
+    url = SERVICE_DOMAIN + id
+    new_message = MessageModel.create(messageId=id, message=message['message'], url=url)
     return model_to_dict(new_message), 200
 
 
