@@ -46,9 +46,9 @@ def create_message():
     return model_to_dict(new_message), 200
 
 
-@app.route('/message-id/<url>', methods=["DELETE"])
-def delete_message(url):
-    message = MessageModel.get_or_none(MessageModel.url == url)
+@app.route('/message-id/<messageId>', methods=["DELETE"])
+def delete_message(messageId):
+    message = MessageModel.get_or_none(MessageModel.messageId == messageId)
     if message is None:
         return "Сообщение не было найдено.", 404
     message.delete_instance()
