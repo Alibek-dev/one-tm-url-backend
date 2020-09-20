@@ -4,11 +4,12 @@ from peewee import *
 from playhouse.shortcuts import model_to_dict
 import time
 import random
+from datetime import datetime, timezone
+import dateutil.parser
+import json
 
 app = Flask(__name__)
 db = SqliteDatabase('message.db')
-
-SERVICE_DOMAIN = 'http://localhost:8080/message-id/'
 
 
 class BaseModel(Model):
@@ -19,30 +20,46 @@ class BaseModel(Model):
 class MessageModel(BaseModel):
     messageId = CharField(30, unique=True)
     message = TextField()
-    url = CharField()
+    dueDate = CharField()
+    password = CharField()
+    notAskConfirmation = BooleanField()
+    expired = False
 
 
 db.connect()
 db.create_tables([MessageModel])
 
 
-@app.route('/message-id/<url>', methods=["GET"])
-def get_message(url):
-    message = MessageModel.get_or_none(MessageModel.url == url)
+@app.route('/message-id/<messageId>', methods=["GET"])
+def get_message(messageId):
+    message = MessageModel.get_or_none(MessageModel.messageId == messageId)
     if message is None:
         return "Сообщение не было найдено.", 404
+    if message.dueDate != '':
+        dateToDeleteMessage = dateutil.parser.parse(message.dueDate)
+        dateUTC = datetime.now(timezone.utc)
+        if dateUTC > dateToDeleteMessage:
+            delete_message(message.messageId)
+            message = {
+                'expired': True
+            }
+            return json.dumps(message)
     return model_to_dict(message), 200
 
 
 @app.route('/message', methods=["POST"])
 def create_message():
     message = request.get_json()
-    print(message)
     if message is None:
         return "Неправильный формат данных.", 404
     id = "id" + str(round(random.uniform(1, 100))) + str(round(time.time() * 1000))
-    url = SERVICE_DOMAIN + id
-    new_message = MessageModel.create(messageId=id, message=message['message'], url=url)
+    new_message = MessageModel.create(
+        messageId=id,
+        message=message['message'],
+        dueDate=message['dateToDeleteMessage'],
+        password=message['password'],
+        notAskConfirmation=message['notAskConfirmation']
+    )
     return model_to_dict(new_message), 200
 
 
